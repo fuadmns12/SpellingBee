@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function roomDoc(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId));
+    }
+
+    function isHost(roomId) {
+      return isSignedIn() && roomDoc(roomId).data.hostUid == request.auth.uid;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.hostUid == request.auth.uid;
+      allow update, delete: if isHost(roomId);
+
+      match /players/{playerId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isHost(roomId);
+      }
+
+      match /buzzEvents/{eventId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isHost(roomId);
+      }
+
+      match /vocabularyResults/{docId} {
+        allow read: if true;
+        allow create, update, delete: if isHost(roomId);
+      }
+    }
+
+    match /vocabularyBank/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
