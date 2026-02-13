@@ -1,0 +1,37 @@
+name: Deploy Firebase
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install functions dependencies
+        run: npm --prefix functions ci
+
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools
+
+      - name: Write service account key
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/gcp-key.json
+
+      - name: Deploy Functions and Firestore Rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: $HOME/gcp-key.json
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: firebase deploy --project "$FIREBASE_PROJECT_ID" --only functions,firestore:rules --non-interactive
